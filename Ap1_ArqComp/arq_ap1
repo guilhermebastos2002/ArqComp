@@ -1,0 +1,262 @@
+#define Sensor  10
+#define Buzzer  9
+#define LedLiga  11
+// Horario Inicial
+#define chaveI1  31
+#define chaveI2  33
+#define chaveI3  35
+#define chaveI4  37
+#define chaveI5  39
+// Horario Final
+#define chaveF1 45
+#define chaveF2 47
+#define chaveF3 49
+#define chaveF4 51
+#define chaveF5 53
+// Leds Azuis
+#define LedAzul1 22
+#define LedAzul2 24
+#define LedAzul3 26
+#define LedAzul4 28
+#define LedAzul5 30
+
+
+String hora_lida = "--:--";
+long int t1;
+long int hora_inicial;
+long int min_ant;
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(LedLiga, INPUT);
+  pinMode(Sensor, INPUT);
+  pinMode(Buzzer, OUTPUT);
+  
+  pinMode(chaveI1, INPUT);
+  pinMode(chaveI2, INPUT);
+  pinMode(chaveI3, INPUT);
+  pinMode(chaveI4, INPUT);
+  pinMode(chaveI5, INPUT);
+  
+  pinMode(chaveF1, INPUT);
+  pinMode(chaveF2, INPUT);
+  pinMode(chaveF3, INPUT);
+  pinMode(chaveF4, INPUT);
+  pinMode(chaveF5, INPUT);
+  
+  pinMode(LedAzul1, OUTPUT);
+  pinMode(LedAzul2, OUTPUT);
+  pinMode(LedAzul3, OUTPUT);
+  pinMode(LedAzul4, OUTPUT);
+  pinMode(LedAzul5, OUTPUT);  
+  
+
+  while (hora_lida == "--:--") {
+    if (Serial.available() > 0) {
+      hora_lida = Serial.readString(); 
+      t1 = millis();
+      break;
+    };
+  };
+  
+  long int horas = hora_lida.substring(0, 2).toInt() * 60 * 60 * 1000;
+  long int minutos = hora_lida.substring(3).toInt() * 60 * 1000;
+  hora_inicial = horas + minutos;  
+  
+
+  Serial.print("Hora lida: "); Serial.println(hora_lida);
+  Serial.print("Millis capturado (t1): "); Serial.println(t1);
+  Serial.print("Horas em ms: "); Serial.println(horas);
+  Serial.print("Minutos em ms: "); Serial.println(minutos);
+  Serial.print("Hora inicial em ms: "); Serial.println(hora_inicial);
+
+}
+
+
+void loop() {
+  int Liga = digitalRead(ledLiga); // Le a entrada do led verde
+  int Sensor = digitalRead(Sensor); // Le a entrada do sensor
+
+  int HoraI = readDipSwitchesStart(); 
+  int HoraF = readDipSwitchesEnd(); 
+  String Hora = updateCurrentTime(hora_inicial, t1);
+  int HORA = Hora.substring(0, 2).toInt();
+  int MIN = Hora.substring(3).toInt();
+
+  
+  
+  
+  if (Liga == HIGH){
+    if (MIN != min_ant && HORA < 24) { 
+      Serial.flush();
+      Serial.print("Relogio: ", Hora);
+      Serial.print("Hora Inicial: ", HoraI);
+      Serial.print("Hora Final: ", HoraF);
+      Serial.println("");
+      min_ant = MIN;
+    };
+    if (horaI > 24 || horaF > 24){
+      piscaAzul();
+    } 
+    else if (HoraI <= HORA && HORA < HoraF){
+      int REMAINING = calculateRemainingTime(HORA, HoraF);
+      updateCountdownLEDs(REMAINING);
+      if (Sensor == HIGH){
+        TocarAlarme(1);
+      } 
+      else {
+        noTone(Sensor);
+      }
+    } else {
+        digitalWrite(ledAzul1, LOW);
+        digitalWrite(ledAzul2, LOW);
+        digitalWrite(ledAzul3, LOW);
+        digitalWrite(ledAzul4, LOW);
+        digitalWrite(ledAzul5, LOW); 
+    }
+  } else {
+        digitalWrite(ledAzul1, LOW);
+        digitalWrite(ledAzul2, LOW);
+        digitalWrite(ledAzul3, LOW);
+        digitalWrite(ledAzul4, LOW);
+        digitalWrite(ledAzul5, LOW); 
+  }
+}
+
+
+
+void TocarAlarme(int entrada) {
+  while (entrada > 0) {
+    tone(Sensor, 220);
+    delay(100);
+  }
+}
+
+
+// Funcao pra mostrar horario inicial
+int readDipSwitchesStart() {
+  int Pin2 = digitalRead(chaveI1)== HIGH ? 1 : 0;
+  int Pin3 = digitalRead(chaveI2)== HIGH ? 1 : 0;
+  int Pin4 = digitalRead(chaveI3)== HIGH ? 1 : 0;
+  int Pin5 = digitalRead(chaveI4)== HIGH ? 1 : 0;
+  int Pin6 = digitalRead(chaveI5)== HIGH ? 1 : 0;
+  Serial.println(Pin2);
+  Serial.println(Pin3);
+  Serial.println(Pin4);
+  Serial.println(Pin5);
+  Serial.println(Pin6);
+  Serial.println("\n");
+
+  // Transforma os valores dos pinos em uma string binária
+  String binaryString = String(Pin2) +
+                        String(Pin3) +
+                        String(Pin4) +
+                        String(Pin5) +
+                        String(Pin6);
+  // Converte a string binária em um número decimal
+  int decimalNumberStart = 0;
+  for (int i = 0; i < binaryString.length(); i++) {
+    if (binaryString[i] == '1') {
+      decimalNumberStart += 1 << (binaryString.length() - 1 - i);
+    }
+  }
+  return decimalNumberStart;
+}
+
+
+// Funcao pra mostrar horario final
+int readDipSwitchesEnd() {
+  int PinA1 = digitalRead(chaveF1)== HIGH ? 1 : 0;
+  int PinA2 = digitalRead(chaveF2)== HIGH ? 1 : 0;
+  int PinA3 = digitalRead(chaveF3)== HIGH ? 1 : 0;
+  int PinA4 = digitalRead(chaveF4)== HIGH ? 1 : 0;
+  int PinA5 = digitalRead(chaveF5)== HIGH ? 1 : 0;
+  // Concatena os valores dos pinos em uma string binária
+  String binaryString = String(PinA5) +
+                        String(PinA4) +
+                        String(PinA3) +
+                        String(PinA2) +
+                        String(PinA1);
+  // Converte a string binária em um número decimal
+  int decimalNumberEnd = 0;
+  for (int i = 0; i < binaryString.length(); i++) {
+    if (binaryString[i] == '1') {
+      decimalNumberEnd += 1 << (binaryString.length() - 1 - i);
+    }
+  }
+  return decimalNumberEnd;
+}
+
+
+// Funcao para exibir nos leds azuis o tempo restante
+void updateCountdownLEDs(int horas){
+  
+  // Transforma em binario
+  String binaryString = "";
+  while (horas > 0) {
+    binaryString = String(horas % 2) + binaryString;
+    horas = horas / 2;
+  }
+  
+  // Adicionar zeros à esquerda se necessário
+  while (binaryString.length() < 5) {
+    binaryString = "0" + binaryString;
+  }
+
+  // Calcular o complemento de 1
+  String C1 = "";
+  for (int i = 0; i < binaryString.length(); i++) {
+    if (binaryString[i] == '0') {
+      C1 += '1';
+    } else {
+      C1 += '0';
+    }
+  }
+  // Acionar os LEDs
+  digitalWrite(ledAzul1, C1.charAt(0) == '1' ? HIGH : LOW);
+  digitalWrite(ledAzul2, C1.charAt(1) == '1' ? HIGH : LOW);
+  digitalWrite(ledAzul3, C1.charAt(2) == '1' ? HIGH : LOW);
+  digitalWrite(ledAzul4, C1.charAt(3) == '1' ? HIGH : LOW);
+  digitalWrite(ledAzul5, C1.charAt(4) == '1' ? HIGH : LOW);
+}
+
+//Funcao para calcular tempo restante
+int calculateRemainingTime(int horas, int horafinal){
+  int restante = horafinal - horas;
+    return restante;
+}
+
+
+//Funcao para fazer os leds azuis piscar
+void piscaAzul(){
+  digitalWrite(ledAzul1, HIGH);
+  digitalWrite(ledAzul2, HIGH);
+  digitalWrite(ledAzul3, HIGH);
+  digitalWrite(ledAzul4, HIGH);
+  digitalWrite(ledAzul5, HIGH);
+  delay(500);
+  digitalWrite(ledAzul1, LOW);
+  digitalWrite(ledAzul2, LOW);
+  digitalWrite(ledAzul3, LOW);
+  digitalWrite(ledAzul4, LOW);
+  digitalWrite(ledAzul5, LOW);
+  delay(500);
+}
+
+// Para atualizar o relógio
+String updateCurrentTime(long int hora_ini, long int t_ini) {
+  unsigned long millis_atual = millis();  // Captura o millis atual. Pode ser multiplicado por algum número para "acelerar o tempo" e facilitar os testes
+  long int tempo_decorrido = millis_atual - t_ini;  // Tempo decorrido desde o início
+  long int total_ms = hora_ini + tempo_decorrido;  // Tempo total em milissegundos
+  
+  long int HORA = total_ms / 3600000;  // Total de horas
+  long int MIN = (total_ms % 3600000) / 60000;  // Minutos restantes após subtrair as horas
+
+  Serial.print("Millis atual: "); Serial.println(millis_atual);
+  Serial.print("Millis decorridos: "); Serial.println(tempo_decorrido);
+  Serial.print("Total millis: "); Serial.println(total_ms);
+  Serial.print("Horas: "); Serial.println(HORA);
+  Serial.print("Minutos: "); Serial.println(MIN);
+
+  return (HORA < 10 ? "0" : "") + String(HORA) + ":" + (MIN < 10 ? "0" : "") + String(MIN); 
+};
